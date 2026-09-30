@@ -40,7 +40,7 @@ public class RuleScreenConsumer {
         this.repository = repository;
     }
 
-    @KafkaListener(topics = KafkaTopics.INGESTED, groupId = "rule-screen")
+    @KafkaListener(topics = KafkaTopics.INGESTED, groupId = "rule-screen", concurrency = "${core.kafka.screening-concurrency:3}")
     public void onIngested(TransactionEvent event) {
         List<String> reasons = screen(event);
 
