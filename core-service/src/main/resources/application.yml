@@ -19,6 +19,7 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
       auto-offset-reset: earliest
+      max-poll-records: ${CORE_KAFKA_MAX_POLL_RECORDS:50}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
