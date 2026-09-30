@@ -5,11 +5,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Assembles the investigation {@link StateGraph} from the individual nodes.
+ * Assembles the bounded investigation graph.
  *
- * <p>The graph is mostly linear (enrich → retrieveCases → assess → decide) but {@code assess} has
- * a conditional edge that can loop back through {@code investigateDeeper}, capped by
- * {@link #MAX_INVESTIGATION_DEPTH}, before finally routing to {@code decide}.
+ * <p>The graph is linear for the first pass, then can loop through a deeper enrichment/retrieval
+ * pass when the score is borderline. The depth cap prevents unbounded investigation work.
  */
 @Configuration
 public class InvestigationGraphFactory {
@@ -30,7 +29,7 @@ public class InvestigationGraphFactory {
                 .addConditionalEdge("assess", state ->
                         state.isBorderline() && state.investigationDepth() < MAX_INVESTIGATION_DEPTH
                                 ? "investigateDeeper" : "decide")
-                .addEdge("investigateDeeper", "assess")     // the cycle
+                .addEdge("investigateDeeper", "enrich")
                 .addEdge("decide", StateGraph.END);
     }
 }

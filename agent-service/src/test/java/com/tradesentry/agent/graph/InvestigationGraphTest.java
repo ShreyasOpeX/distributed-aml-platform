@@ -87,6 +87,8 @@ class InvestigationGraphTest {
         InvestigationState result = graph.invoke(initial);
 
         assertTrue(result.investigationDepth() >= 1, "expected the graph to loop at least once");
-        assertNotNull(result.decision());
+        assertTrue(result.evidence().size() >= 4, "deeper pass should add enrichment and case evidence");
+        assertNotNull(result.rationale());
+        assertTrue(result.rationale().contains("evidence="));
     }
 }
