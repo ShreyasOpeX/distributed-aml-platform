@@ -5,11 +5,14 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Agent-service's own copy of the transaction event. It mirrors core-service's record exactly in
- * component names, order, and types — but is a separate class on purpose: each service stays
- * independently deployable and they agree on the JSON contract, not on a shared jar.
+ * Agent-service's local copy of the event contract.
+ *
+ * <p>The wire format remains compatible with core-service while each service
+ * stays independently deployable. eventId is propagated so downstream
+ * consumers can deduplicate retries.
  */
 public record TransactionEvent(
+        UUID eventId,
         UUID transactionId,
         String accountId,
         BigDecimal amount,
@@ -19,9 +22,16 @@ public record TransactionEvent(
         String decision,
         Instant occurredAt) {
 
-    public TransactionEvent adjudicated(String decision, String reason) {
+    public TransactionEvent adjudicated(String decision, String rationale) {
         return new TransactionEvent(
-                transactionId, accountId, amount, currency, counterpartyCountry,
-                reason, decision, Instant.now());
+                UUID.randomUUID(),
+                transactionId,
+                accountId,
+                amount,
+                currency,
+                counterpartyCountry,
+                rationale,
+                decision,
+                Instant.now());
     }
 }
