@@ -9,11 +9,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Factory for the individual {@link Node}s that make up the investigation graph. Each method
- * returns a pure function over {@link InvestigationState}; the graph wiring lives in the factory.
+ * Factory for the individual {@link Node}s that make up the investigation graph. Each node returns
+ * a new immutable state; graph wiring and routing live in the factory.
  */
 @Component
 public class InvestigationNodes {
@@ -28,27 +29,47 @@ public class InvestigationNodes {
 
     public Node<InvestigationState> enrich() {
         return state -> {
-            AccountHistory history = caseData.getAccountHistory(state.accountId(), 90);
-            log.info("enrich [tx={}] riskBand={} priorSar={}",
-                    state.transactionId(), history.riskBand(), history.hasPriorSar());
-            return state.withEnrichment(history.riskBand(), history.hasPriorSar());
+            int lookbackDays = state.investigationDepth() == 0 ? 90 : 365;
+            AccountHistory history = caseData.getAccountHistory(state.accountId(), lookbackDays);
+
+            List<String> evidence = new ArrayList<>(state.evidence());
+            evidence.add(String.format(
+                    "account history (%dd): riskBand=%s, priorFlags=%d, priorSar=%s, maxAmount=%.2f",
+                    lookbackDays, history.riskBand(), history.priorFlags(),
+                    history.hasPriorSar(), history.maxAmount()));
+
+            log.info("enrich [tx={}] lookback={} riskBand={} priorSar={} priorFlags={}",
+                    state.transactionId(), lookbackDays, history.riskBand(),
+                    history.hasPriorSar(), history.priorFlags());
+
+            return state.withEnrichment(history.riskBand(), history.hasPriorSar())
+                    .withEvidence(evidence);
         };
     }
 
     public Node<InvestigationState> retrieveCases() {
         return state -> {
+            int maxResults = state.investigationDepth() == 0 ? 5 : 10;
             String summary = buildSummary(state);
             List<SimilarCase> cases = caseData.retrieveSimilarCases(
-                    summary, state.amount(), state.counterpartyCountry(), 5);
+                    summary, state.amount(), state.counterpartyCountry(), maxResults);
             String worst = worstOutcome(cases);
-            log.info("retrieveCases [tx={}] found={} worstOutcome={}",
-                    state.transactionId(), cases.size(), worst);
-            return state.withSimilarCases(cases.size(), worst);
+
+            List<String> evidence = new ArrayList<>(state.evidence());
+            evidence.add(String.format(
+                    "similar historical cases: count=%d, worstOutcome=%s, requested=%d",
+                    cases.size(), worst, maxResults));
+
+            log.info("retrieveCases [tx={}] found={} requested={} worstOutcome={}",
+                    state.transactionId(), cases.size(), maxResults, worst);
+
+            return state.withSimilarCases(cases.size(), worst)
+                    .withEvidence(evidence);
         };
     }
 
-    // Deterministic rule-based scoring. This is the seam to later replace with a Spring AI
-    // ChatClient call that asks an LLM to weigh the same signals.
+    // Deterministic rule-based scoring. This is the seam to later replace with a governed
+    // model-based scorer that weighs the same auditable signals.
     public Node<InvestigationState> assess() {
         return state -> {
             double score = 0.0;
@@ -85,6 +106,10 @@ public class InvestigationNodes {
         };
     }
 
+    /**
+     * A borderline result triggers a genuinely deeper read rather than merely incrementing a
+     * counter. The next pass widens account-history lookback and requests more similar cases.
+     */
     public Node<InvestigationState> investigateDeeper() {
         return state -> {
             log.info("investigateDeeper [tx={}] depth {} -> {}",
@@ -103,10 +128,14 @@ public class InvestigationNodes {
             } else {
                 decision = "CLEAR";
             }
+
             String rationale = String.format(
-                    "score=%.2f, band=%s, priorSar=%s, similarCases=%d (worst=%s), reason=%s",
-                    state.riskScore(), state.accountRiskBand(), state.priorSar(),
-                    state.similarCaseCount(), state.worstPriorOutcome(), state.flagReason());
+                    "decision=%s; score=%.2f; depth=%d; band=%s; priorSar=%s; similarCases=%d "
+                            + "(worst=%s); flagReason=%s; evidence=%s",
+                    decision, state.riskScore(), state.investigationDepth(),
+                    state.accountRiskBand(), state.priorSar(), state.similarCaseCount(),
+                    state.worstPriorOutcome(), state.flagReason(), state.evidence());
+
             log.info("decide [tx={}] -> {} ({})", state.transactionId(), decision, rationale);
             return state.withDecision(decision, rationale);
         };
