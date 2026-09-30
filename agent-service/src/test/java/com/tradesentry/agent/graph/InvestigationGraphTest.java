@@ -2,6 +2,8 @@ package com.tradesentry.agent.graph;
 
 import com.tradesentry.agent.client.CaseDataClient;
 import com.tradesentry.agent.nodes.InvestigationNodes;
+import com.tradesentry.agent.scoring.DeterministicRiskScorer;
+import com.tradesentry.agent.scoring.ThresholdDecisionPolicy;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -42,7 +44,7 @@ class InvestigationGraphTest {
     }
 
     private StateGraph<InvestigationState> graphFor(FakeCaseDataClient fake) {
-        return new InvestigationGraphFactory().investigationGraph(new InvestigationNodes(fake));
+        return new InvestigationGraphFactory().investigationGraph(new InvestigationNodes(fake, new DeterministicRiskScorer(), new ThresholdDecisionPolicy()));
     }
 
     @Test
