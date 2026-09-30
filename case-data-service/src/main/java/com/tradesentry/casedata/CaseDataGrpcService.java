@@ -16,29 +16,36 @@ import java.util.List;
  * gRPC implementation of the case-data contract. Spring gRPC auto-registers any bean of type
  * {@link io.grpc.BindableService} (which the generated base class implements) with the server.
  *
- * <p>Data is synthetic and deterministic — derived from the accountId hash — mirroring the
- * Phase 5 stub so behaviour is identical now that the call crosses a process boundary.
+ * <p>Data is synthetic and deterministic. The implementation intentionally honours
+ * request bounds so the client can increase investigation depth without silently
+ * receiving the same amount of evidence as the first pass.
  */
 @Service
 public class CaseDataGrpcService extends CaseDataServiceGrpc.CaseDataServiceImplBase {
 
     private static final Logger log = LoggerFactory.getLogger(CaseDataGrpcService.class);
+    private static final int MAX_SIMILAR_CASES = 10;
 
     @Override
     public void getAccountHistory(AccountHistoryRequest request,
                                   StreamObserver<AccountHistoryResponse> responseObserver) {
         String accountId = request.getAccountId();
         int hash = Math.abs(accountId.hashCode());
+        int lookbackDays = Math.max(1, request.getLookbackDays());
+
         String riskBand = switch (hash % 3) {
             case 0 -> "LOW";
             case 1 -> "MEDIUM";
             default -> "HIGH";
         };
         boolean hasPriorSar = (hash % 5 == 0);
-        int totalTransactions = 50 + hash % 200;
+
+        int baselineTransactions = 50 + hash % 200;
+        int periods = Math.max(1, (lookbackDays + 89) / 90);
+        int totalTransactions = baselineTransactions * periods;
         double avgTransactionAmount = 1000 + hash % 5000;
         double maxTransactionAmount = 20000 + hash % 80000;
-        int priorFlags = hash % 6;
+        int priorFlags = Math.min(20, (hash % 6) * periods);
 
         AccountHistoryResponse response = AccountHistoryResponse.newBuilder()
                 .setAccountId(accountId)
@@ -50,8 +57,8 @@ public class CaseDataGrpcService extends CaseDataServiceGrpc.CaseDataServiceImpl
                 .setRiskBand(riskBand)
                 .build();
 
-        log.info("getAccountHistory [account={}] -> band={} priorSar={}",
-                accountId, riskBand, hasPriorSar);
+        log.info("getAccountHistory [account={}, lookback={}] -> band={} priorSar={} transactions={} flags={}",
+                accountId, lookbackDays, riskBand, hasPriorSar, totalTransactions, priorFlags);
 
         responseObserver.onNext(response);
         responseObserver.onCompleted();
@@ -60,7 +67,7 @@ public class CaseDataGrpcService extends CaseDataServiceGrpc.CaseDataServiceImpl
     @Override
     public void retrieveSimilarCases(SimilarCasesRequest request,
                                      StreamObserver<SimilarCase> responseObserver) {
-        int max = Math.max(1, Math.min(request.getMaxResults(), 5));
+        int max = Math.max(1, Math.min(request.getMaxResults(), MAX_SIMILAR_CASES));
         boolean risky = request.getAmount() > 20000
                 || List.of("KP", "IR", "SY").contains(request.getCounterpartyCountry());
         int count = risky ? max : Math.max(1, max - 2);
@@ -71,7 +78,7 @@ public class CaseDataGrpcService extends CaseDataServiceGrpc.CaseDataServiceImpl
         for (int i = 0; i < count; i++) {
             String outcome = risky ? (i % 2 == 0 ? "SAR_FILED" : "ESCALATED") : "CLEARED";
             String caseId = "case-" + (1000 + i);
-            double similarityScore = 0.95 - i * 0.07;
+            double similarityScore = Math.max(0.50, 0.95 - i * 0.07);
             String summary = "Prior " + outcome + " case with comparable profile";
 
             SimilarCase similarCase = SimilarCase.newBuilder()
@@ -81,7 +88,6 @@ public class CaseDataGrpcService extends CaseDataServiceGrpc.CaseDataServiceImpl
                     .setSummary(summary)
                     .build();
 
-            // Stream each case as it is "found" rather than collecting them first.
             responseObserver.onNext(similarCase);
         }
 
