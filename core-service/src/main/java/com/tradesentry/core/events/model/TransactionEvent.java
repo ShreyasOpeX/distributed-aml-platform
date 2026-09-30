@@ -5,11 +5,14 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Immutable event describing a transaction as it moves through the monitoring pipeline.
- * The same shape is reused across every topic; {@code reason}/{@code decision} are populated
- * only for the later lifecycle stages.
+ * Immutable wire event for the transaction monitoring pipeline.
+ *
+ * <p>{@code eventId} uniquely identifies this event instance. Consumers can
+ * use it as an idempotency key while {@code transactionId} identifies the
+ * business transaction.
  */
 public record TransactionEvent(
+        UUID eventId,
         UUID transactionId,
         String accountId,
         BigDecimal amount,
@@ -19,13 +22,13 @@ public record TransactionEvent(
         String decision,
         Instant occurredAt) {
 
-    /** Event emitted when a transaction is first accepted by the intake API. */
     public static TransactionEvent ingested(UUID transactionId,
                                             String accountId,
                                             BigDecimal amount,
                                             String currency,
                                             String counterpartyCountry) {
         return new TransactionEvent(
+                UUID.randomUUID(),
                 transactionId,
                 accountId,
                 amount,
@@ -36,9 +39,9 @@ public record TransactionEvent(
                 Instant.now());
     }
 
-    /** Copy of this event marked as flagged, carrying the screening reason. */
     public TransactionEvent flagged(String reason) {
         return new TransactionEvent(
+                UUID.randomUUID(),
                 transactionId,
                 accountId,
                 amount,
@@ -49,15 +52,15 @@ public record TransactionEvent(
                 Instant.now());
     }
 
-    /** Copy of this event marked as adjudicated, carrying the final decision and reason. */
-    public TransactionEvent adjudicated(String decision, String reason) {
+    public TransactionEvent adjudicated(String decision, String rationale) {
         return new TransactionEvent(
+                UUID.randomUUID(),
                 transactionId,
                 accountId,
                 amount,
                 currency,
                 counterpartyCountry,
-                reason,
+                rationale,
                 decision,
                 Instant.now());
     }

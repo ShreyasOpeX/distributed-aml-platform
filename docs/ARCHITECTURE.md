@@ -115,7 +115,7 @@ flowchart TD
     retrieveCases --> assess
     assess -->|borderline and depth < 2| investigateDeeper
     assess -->|otherwise| decide
-    investigateDeeper --> assess
+    investigateDeeper --> enrich
     decide --> done([END])
 ```
 
@@ -124,7 +124,7 @@ flowchart TD
 | `enrich`            | Fetch account history (risk band, prior SAR) via gRPC                          |
 | `retrieveCases`     | Retrieve similar prior cases via gRPC; derive the worst prior outcome          |
 | `assess`            | Compute a risk score from the accumulated signals                              |
-| `investigateDeeper` | Increment investigation depth; the loop back edge revisits `assess`            |
+| `investigateDeeper` | Increment investigation depth; the loop back edge triggers a fresh enrichment/retrieval pass |
 | `decide`            | Map the final score to a decision and record a rationale                       |
 
 **Risk scoring** (in `assess`) accumulates weighted signals: flag reason
@@ -145,9 +145,13 @@ loop back through `investigateDeeper` — up to `MAX_INVESTIGATION_DEPTH` (2)
 times — before a final decision, giving the extra depth a chance to push the
 score across a threshold.
 
-The `assess` node is deterministic and rule-based today; it is the intended seam
-for a future model-based scorer (for example, a Spring AI `ChatClient` call that
-weighs the same signals).
+The `assess` node delegates to the `RiskScorer` strategy. The current implementation is a deterministic,
+auditable scorer; a calibrated ML model or governed model-based scorer can replace that strategy
+without changing the graph. Likewise, `DecisionPolicy` isolates disposition thresholds from workflow control flow.
+
+Deeper investigation is intentionally bounded. The first pass requests up to 5 similar cases over a 90-day
+lookback; deeper passes request up to 10 cases over a 365-day lookback. The case-data service enforces those
+request bounds rather than silently returning the first-pass amount of evidence.
 
 ## gRPC case-data access
 
