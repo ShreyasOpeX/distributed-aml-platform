@@ -12,12 +12,11 @@ spring:
     consumer:
       group-id: investigation-agent
       max-poll-records: ${AGENT_KAFKA_MAX_POLL_RECORDS:10}
-      properties:
-        max.poll.interval.ms: ${AGENT_KAFKA_MAX_POLL_INTERVAL_MS:300000}
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
+        max.poll.interval.ms: ${AGENT_KAFKA_MAX_POLL_INTERVAL_MS:300000}
         spring.json.trusted.packages: com.tradesentry.agent.events
         spring.json.value.default.type: com.tradesentry.agent.events.TransactionEvent
         # Producers stamp a __TypeId__ header with their OWN class name; since each service
