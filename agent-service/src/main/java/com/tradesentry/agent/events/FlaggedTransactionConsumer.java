@@ -9,9 +9,12 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Bridges Kafka and the investigation graph. Kafka provides the async choreography <em>between</em>
- * pipeline stages (screening → investigation → case management); the {@link StateGraph} runs
- * synchronously <em>within</em> this stage. Different transports for different problems.
+ * Bridges Kafka and the investigation graph. Kafka provides the async choreography between
+ * pipeline stages; the graph runs synchronously within this stage.
+ *
+ * <p>Listener concurrency is configuration-driven so additional consumer instances can scale
+ * throughput without changing application code. Kafka partition ownership still preserves
+ * per-key ordering within the topic.
  */
 @Component
 public class FlaggedTransactionConsumer {
@@ -30,10 +33,13 @@ public class FlaggedTransactionConsumer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @KafkaListener(topics = FLAGGED, groupId = "investigation-agent")
+    @KafkaListener(
+            topics = FLAGGED,
+            groupId = "investigation-agent",
+            concurrency = "${agent.kafka.concurrency:3}")
     public void onFlagged(TransactionEvent event) {
-        log.info("Investigating [tx={}, account={}, reason={}]",
-                event.transactionId(), event.accountId(), event.reason());
+        log.info("Investigating [event={}, tx={}, account={}, reason={}]",
+                event.eventId(), event.transactionId(), event.accountId(), event.reason());
 
         InvestigationState initial = InvestigationState.start(
                 event.transactionId(), event.accountId(), event.amount(),
