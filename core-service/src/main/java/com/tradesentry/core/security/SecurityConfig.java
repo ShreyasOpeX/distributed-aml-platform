@@ -25,8 +25,8 @@ public class SecurityConfig {
 
     @Bean
     UserDetailsService users(
-            @Value("${TRADESENTRY_API_USER:operator}") String username,
-            @Value("${TRADESENTRY_API_PASSWORD:change-me}") String password,
+            @Value("${TRADESENTRY_API_USER}") String username,
+            @Value("${TRADESENTRY_API_PASSWORD}") String password,
             PasswordEncoder encoder) {
         return new InMemoryUserDetailsManager(
             User.withUsername(username).password(encoder.encode(password))
