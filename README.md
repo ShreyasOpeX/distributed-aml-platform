@@ -137,3 +137,12 @@ Early development (`0.1.0-SNAPSHOT`). The end-to-end pipeline is functional:
 intake, screening, gRPC-backed investigation, and case management all run.
 Screening rules, case data, and risk scoring are deterministic and synthetic;
 they are the intended seams for future rule engines and model-based scoring.
+
+
+## Reliability and governance
+
+The AML pipeline now includes a transactional outbox, idempotent consumer inboxes, persistent investigation state, durable investigation/SAR cases, an append-oriented audit trail, bounded Kafka retries with a DLQ, gRPC deadlines, versioned screening/scoring/decision policies, API authentication/authorization, bounded rate limiting, OpenTelemetry tracing and documented failure-mode analysis.
+
+The target processing model is at-least-once delivery with idempotent side effects. The platform intentionally does not claim global exactly-once semantics across PostgreSQL, Kafka and remote gRPC calls.
+
+See docs/PRODUCTION-HARDENING.md, docs/FAILURE-MODES.md, and docs/adr/ for the design rationale.
