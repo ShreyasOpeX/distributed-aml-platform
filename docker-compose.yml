@@ -14,6 +14,21 @@ services:
       timeout: 5s
       retries: 10
 
+  agent-postgres:
+    image: postgres:16
+    container_name: tradesentry-agent-postgres
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: tradesentry_agent
+      POSTGRES_USER: tradesentry
+      POSTGRES_PASSWORD: tradesentry
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradesentry -d tradesentry_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   kafka:
     image: apache/kafka:3.9.0
     container_name: tradesentry-kafka
@@ -63,11 +78,18 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
       CASE_DATA_GRPC: static://case-data-service:9090
+      AGENT_DB_HOST: agent-postgres
+      AGENT_DB_PORT: 5432
+      AGENT_DB_NAME: tradesentry_agent
+      AGENT_DB_USER: tradesentry
+      AGENT_DB_PASSWORD: tradesentry
     depends_on:
       kafka:
         condition: service_healthy
       case-data-service:
         condition: service_started
+      agent-postgres:
+        condition: service_healthy
 
   core-service:
     build:
@@ -83,6 +105,8 @@ services:
       DB_NAME: tradesentry
       DB_USER: tradesentry
       DB_PASSWORD: tradesentry
+      TRADESENTRY_API_USER: ${TRADESENTRY_API_USER:?set API user}
+      TRADESENTRY_API_PASSWORD: ${TRADESENTRY_API_PASSWORD:?set API password}
     depends_on:
       kafka:
         condition: service_healthy

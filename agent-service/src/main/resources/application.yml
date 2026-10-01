@@ -11,10 +11,12 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
       group-id: investigation-agent
+      max-poll-records: ${AGENT_KAFKA_MAX_POLL_RECORDS:10}
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
+        max.poll.interval.ms: ${AGENT_KAFKA_MAX_POLL_INTERVAL_MS:300000}
         spring.json.trusted.packages: com.tradesentry.agent.events
         spring.json.value.default.type: com.tradesentry.agent.events.TransactionEvent
         # Producers stamp a __TypeId__ header with their OWN class name; since each service
@@ -27,6 +29,22 @@ spring:
           address: ${CASE_DATA_GRPC:static://localhost:9090}
           negotiation-type: plaintext
 
+agent:
+  grpc:
+    deadline-ms: ${AGENT_GRPC_DEADLINE_MS:2000}
+
 logging:
   level:
     com.tradesentry: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: ${TRADESENTRY_TRACE_SAMPLE:0.1}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}

@@ -4,13 +4,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Immutable wire event for the transaction monitoring pipeline.
- *
- * <p>{@code eventId} uniquely identifies this event instance. Consumers can
- * use it as an idempotency key while {@code transactionId} identifies the
- * business transaction.
- */
 public record TransactionEvent(
         UUID eventId,
         UUID transactionId,
@@ -20,48 +13,31 @@ public record TransactionEvent(
         String counterpartyCountry,
         String reason,
         String decision,
+        Double riskScore,
+        Integer investigationDepth,
+        String ruleVersion,
+        String scoringVersion,
+        String decisionPolicyVersion,
+        String correlationId,
         Instant occurredAt) {
 
-    public static TransactionEvent ingested(UUID transactionId,
-                                            String accountId,
-                                            BigDecimal amount,
-                                            String currency,
-                                            String counterpartyCountry) {
-        return new TransactionEvent(
-                UUID.randomUUID(),
-                transactionId,
-                accountId,
-                amount,
-                currency,
-                counterpartyCountry,
-                null,
-                null,
-                Instant.now());
+    public static TransactionEvent ingested(UUID transactionId,String accountId,BigDecimal amount,
+                                            String currency,String counterpartyCountry) {
+        return new TransactionEvent(UUID.randomUUID(),transactionId,accountId,amount,currency,
+                counterpartyCountry,null,null,null,null,"rules-v1",null,null,
+                UUID.randomUUID().toString(),Instant.now());
     }
 
     public TransactionEvent flagged(String reason) {
-        return new TransactionEvent(
-                UUID.randomUUID(),
-                transactionId,
-                accountId,
-                amount,
-                currency,
-                counterpartyCountry,
-                reason,
-                null,
-                Instant.now());
+        return new TransactionEvent(UUID.randomUUID(),transactionId,accountId,amount,currency,
+                counterpartyCountry,reason,null,null,null,ruleVersion,"score-v1","policy-v1",
+                correlationId,Instant.now());
     }
 
-    public TransactionEvent adjudicated(String decision, String rationale) {
-        return new TransactionEvent(
-                UUID.randomUUID(),
-                transactionId,
-                accountId,
-                amount,
-                currency,
-                counterpartyCountry,
-                rationale,
-                decision,
-                Instant.now());
+    public TransactionEvent adjudicated(String decision,String rationale,double riskScore,
+                                        int depth,String scoringVersion,String policyVersion) {
+        return new TransactionEvent(UUID.randomUUID(),transactionId,accountId,amount,currency,
+                counterpartyCountry,rationale,decision,riskScore,depth,ruleVersion,
+                scoringVersion,policyVersion,correlationId,Instant.now());
     }
 }

@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Real gRPC-backed implementation of {@link CaseDataClient}. It talks to case-data-service over
@@ -21,8 +22,11 @@ import java.util.List;
 public class GrpcCaseDataClient implements CaseDataClient {
 
     private final CaseDataServiceGrpc.CaseDataServiceBlockingStub stub;
+    private final long deadlineMs;
 
-    public GrpcCaseDataClient(GrpcChannelFactory channels) {
+    public GrpcCaseDataClient(GrpcChannelFactory channels,
+                               org.springframework.core.env.Environment environment) {
+        this.deadlineMs = environment.getProperty("agent.grpc.deadline-ms", Long.class, 2000L);
         this.stub = CaseDataServiceGrpc.newBlockingStub(channels.createChannel("case-data"));
     }
 
@@ -33,7 +37,7 @@ public class GrpcCaseDataClient implements CaseDataClient {
                 .setLookbackDays(lookbackDays)
                 .build();
 
-        AccountHistoryResponse response = stub.getAccountHistory(request);
+        AccountHistoryResponse response = stub.withDeadlineAfter(deadlineMs, TimeUnit.MILLISECONDS).getAccountHistory(request);
 
         return new AccountHistory(
                 response.getAccountId(),
@@ -57,7 +61,8 @@ public class GrpcCaseDataClient implements CaseDataClient {
 
         // Server-streaming call: the blocking stub returns an Iterator that blocks per element
         // until the server closes the stream. Drain it into a plain list for the caller.
-        Iterator<com.tradesentry.proto.casedata.SimilarCase> it = stub.retrieveSimilarCases(request);
+        Iterator<com.tradesentry.proto.casedata.SimilarCase> it =
+                stub.withDeadlineAfter(deadlineMs, TimeUnit.MILLISECONDS).retrieveSimilarCases(request);
         List<SimilarCase> cases = new ArrayList<>();
         while (it.hasNext()) {
             com.tradesentry.proto.casedata.SimilarCase c = it.next();

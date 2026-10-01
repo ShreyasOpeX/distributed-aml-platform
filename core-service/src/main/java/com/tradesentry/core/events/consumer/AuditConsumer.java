@@ -1,29 +1,42 @@
 package com.tradesentry.core.events.consumer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tradesentry.core.audit.*;
 import com.tradesentry.core.events.config.KafkaTopics;
 import com.tradesentry.core.events.model.TransactionEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.tradesentry.core.idempotency.IdempotencyService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class AuditConsumer {
+    private final AuditRecordRepository repository;
+    private final IdempotencyService idempotency;
+    private final ObjectMapper mapper;
 
-    private static final Logger log = LoggerFactory.getLogger(AuditConsumer.class);
-
-    // This listener uses its own "audit" consumer group. Kafka delivers every message to each
-    // group independently, so having a dedicated group is what lets audit fan out alongside the
-    // other consumers (screening, case management) without any of them stealing each other's records.
-    @KafkaListener(topics = KafkaTopics.INGESTED, groupId = "audit")
-    public void onIngested(TransactionEvent event) {
-        log.info("AUDIT ingested [tx={}, account={}, amount={} {}]",
-                event.transactionId(), event.accountId(), event.amount(), event.currency());
+    public AuditConsumer(AuditRecordRepository repository,IdempotencyService idempotency,ObjectMapper mapper){
+        this.repository=repository;this.idempotency=idempotency;this.mapper=mapper;
     }
 
-    @KafkaListener(topics = KafkaTopics.ADJUDICATED, groupId = "audit")
-    public void onAdjudicated(TransactionEvent event) {
-        log.info("AUDIT adjudicated [tx={}, account={}, decision={}, reason={}]",
-                event.transactionId(), event.accountId(), event.decision(), event.reason());
+    @KafkaListener(topics=KafkaTopics.INGESTED,groupId="audit")
+    @Transactional
+    public void onIngested(TransactionEvent event){record(event,"TRANSACTION_INGESTED");}
+
+    @KafkaListener(topics=KafkaTopics.FLAGGED,groupId="audit")
+    @Transactional
+    public void onFlagged(TransactionEvent event){record(event,"TRANSACTION_FLAGGED");}
+
+    @KafkaListener(topics=KafkaTopics.ADJUDICATED,groupId="audit")
+    @Transactional
+    public void onAdjudicated(TransactionEvent event){record(event,"TRANSACTION_ADJUDICATED");}
+
+    private void record(TransactionEvent event,String type){
+        if(!idempotency.claim(event.eventId(),"audit")) return;
+        try{
+            repository.save(new AuditRecord(event.eventId(),event.transactionId(),event.accountId(),type,
+                    mapper.writeValueAsString(event),event.occurredAt()));
+        }catch(JsonProcessingException e){throw new IllegalStateException("Audit serialization failed",e);}
     }
 }
