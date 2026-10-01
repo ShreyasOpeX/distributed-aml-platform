@@ -105,6 +105,8 @@ services:
       DB_NAME: tradesentry
       DB_USER: tradesentry
       DB_PASSWORD: tradesentry
+      TRADESENTRY_API_USER: ${TRADESENTRY_API_USER:?set API user}
+      TRADESENTRY_API_PASSWORD: ${TRADESENTRY_API_PASSWORD:?set API password}
     depends_on:
       kafka:
         condition: service_healthy
