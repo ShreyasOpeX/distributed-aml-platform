@@ -205,3 +205,45 @@ stateDiagram-v2
   the natural fit for the read-side account/case data the agent needs inline.
 - **Bounded graph execution.** The `maxSteps` cap and `MAX_INVESTIGATION_DEPTH`
   ensure the investigation always terminates.
+
+
+## Production-hardening flow
+
+The reference implementation now hardens the pipeline around four durable boundaries:
+
+1. Intake durability: transaction row and ingested outbox row commit together.
+2. Consumer idempotency: each side-effecting consumer records (eventId, consumerName) in an inbox table.
+3. Investigation durability: the agent persists completed investigation state, including evidence and policy versions.
+4. Case durability: case management persists the adjudication, investigation case and SAR workflow record.
+
+The resulting reliability model is at-least-once delivery with idempotent side effects.
+
+### Outbox relay
+
+Multiple core instances can run the outbox publisher. Pending rows are selected with PostgreSQL FOR UPDATE SKIP LOCKED, so relay instances divide work without claiming the same row concurrently.
+
+A relay crash after Kafka acknowledgement can still cause a duplicate. That is why the inbox remains necessary.
+
+### Retry and DLQ
+
+Kafka listeners use bounded retries and publish unrecoverable records to transactions.dlq. The DLQ is an operational recovery boundary, not a discard queue.
+
+### gRPC failure budget
+
+Case-data calls use explicit deadlines. The investigation therefore has a finite dependency budget. A timeout fails the Kafka processing attempt, allowing the listener retry/DLQ policy to take over.
+
+### Security and admission control
+
+The REST boundary uses role-based Spring Security. Transaction submission requires AML_OPERATOR; transaction reads require AML_ANALYST or AML_OPERATOR.
+
+A per-instance requests-per-second limiter returns 429 during bursts. Cluster-wide quotas belong at a shared gateway/Redis layer.
+
+### Observability
+
+Actuator exposes health/metrics and Micrometer/OpenTelemetry is configured for tracing. The transaction event carries a correlation ID so the asynchronous pipeline can preserve request lineage.
+
+### Versioned decisions
+
+The event contract carries ruleVersion, scoringVersion, and decisionPolicyVersion. These are persisted with investigations so an historical decision can be reconstructed after policy changes.
+
+For the complete operational model see docs/PRODUCTION-HARDENING.md, docs/FAILURE-MODES.md, and docs/adr/.
