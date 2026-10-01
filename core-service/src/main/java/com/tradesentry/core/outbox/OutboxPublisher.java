@@ -3,6 +3,7 @@ package com.tradesentry.core.outbox;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +17,8 @@ public class OutboxPublisher {
     private final KafkaTemplate<String,Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    public OutboxPublisher(OutboxEventRepository repository,KafkaTemplate<String,Object> kafkaTemplate,
+    public OutboxPublisher(OutboxEventRepository repository,
+                           @Qualifier("outboxKafkaTemplate") KafkaTemplate<String,Object> kafkaTemplate,
                            ObjectMapper objectMapper){
         this.repository=repository; this.kafkaTemplate=kafkaTemplate; this.objectMapper=objectMapper;
     }
