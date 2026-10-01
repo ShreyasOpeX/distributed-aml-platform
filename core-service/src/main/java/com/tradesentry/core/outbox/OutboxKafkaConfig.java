@@ -13,7 +13,7 @@ import java.util.Map;
 
 @Configuration
 public class OutboxKafkaConfig {
-    @Bean
+    @Bean("outboxKafkaTemplate")
     public KafkaTemplate<String,Object> outboxKafkaTemplate(KafkaProperties properties) {
         Map<String,Object> props=new HashMap<>(properties.buildProducerProperties());
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,StringSerializer.class);
