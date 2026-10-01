@@ -29,6 +29,10 @@ spring:
           address: ${CASE_DATA_GRPC:static://localhost:9090}
           negotiation-type: plaintext
 
+agent:
+  grpc:
+    deadline-ms: ${AGENT_GRPC_DEADLINE_MS:2000}
+
 logging:
   level:
     com.tradesentry: INFO
