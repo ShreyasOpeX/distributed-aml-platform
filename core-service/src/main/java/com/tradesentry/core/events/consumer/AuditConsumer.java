@@ -24,6 +24,10 @@ public class AuditConsumer {
     @Transactional
     public void onIngested(TransactionEvent event){record(event,"TRANSACTION_INGESTED");}
 
+    @KafkaListener(topics=KafkaTopics.FLAGGED,groupId="audit")
+    @Transactional
+    public void onFlagged(TransactionEvent event){record(event,"TRANSACTION_FLAGGED");}
+
     @KafkaListener(topics=KafkaTopics.ADJUDICATED,groupId="audit")
     @Transactional
     public void onAdjudicated(TransactionEvent event){record(event,"TRANSACTION_ADJUDICATED");}
