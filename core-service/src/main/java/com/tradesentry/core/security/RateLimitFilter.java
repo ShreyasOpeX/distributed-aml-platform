@@ -27,13 +27,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if(!request.getRequestURI().startsWith("/api/transactions")){chain.doFilter(request,response);return;}
         String key=request.getRemoteAddr();
         long second=Instant.now().getEpochSecond();
-        Window window=windows.compute(key,(k,w)->w==null||w.epochSecond()!=second?new Window(second,new AtomicInteger(1)):w);
-        if(window.count().get()>requestsPerSecond){
+        Window window=windows.compute(key,(k,w)->w==null||w.epochSecond()!=second?new Window(second,new AtomicInteger(0)):w);
+        if(window.count().incrementAndGet()>requestsPerSecond){
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setHeader("Retry-After","1");
             return;
         }
-        window.count().incrementAndGet();
         chain.doFilter(request,response);
     }
 }
