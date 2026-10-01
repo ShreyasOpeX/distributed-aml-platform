@@ -12,22 +12,20 @@ import java.util.concurrent.TimeUnit;
 public class OutboxPublisher {
     private final OutboxEventRepository repository;
     private final KafkaTemplate<String,String> kafkaTemplate;
-
-    public OutboxPublisher(OutboxEventRepository repository, KafkaTemplate<String,String> kafkaTemplate) {
+    public OutboxPublisher(OutboxEventRepository repository,KafkaTemplate<String,String> kafkaTemplate){
         this.repository=repository; this.kafkaTemplate=kafkaTemplate;
     }
 
-    @Scheduled(fixedDelayString = "${tradesentry.outbox.poll-ms:500}")
+    @Scheduled(fixedDelayString="${tradesentry.outbox.poll-ms:500}")
     @Transactional
-    public void publishPending() {
+    public void publishPending(){
         List<OutboxEvent> events=repository.findTop100ByStatusOrderByCreatedAtAsc(OutboxStatus.PENDING);
-        for (OutboxEvent event: events) {
-            try {
-                kafkaTemplate.send(event.getTopic(), event.getEventKey(), event.getPayload())
-                        .get(10, TimeUnit.SECONDS);
+        for(OutboxEvent event:events){
+            try{
+                kafkaTemplate.send(event.getTopic(),event.getEventKey(),event.getPayload()).get(10,TimeUnit.SECONDS);
                 event.markPublished(Instant.now());
-            } catch (Exception ex) {
-                throw new IllegalStateException("Outbox publish failed for "+event.getId(), ex);
+            }catch(Exception ex){
+                throw new IllegalStateException("Outbox publish failed for "+event.getId(),ex);
             }
         }
     }
