@@ -41,6 +41,15 @@ public class Transaction {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column
+    private String decision;
+
+    @Column(name = "risk_score")
+    private Double riskScore;
+
+    @Column(columnDefinition = "text")
+    private String rationale;
+
     protected Transaction() {
         // for JPA
     }
@@ -93,6 +102,17 @@ public class Transaction {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public String getDecision() { return decision; }
+    public Double getRiskScore() { return riskScore; }
+    public String getRationale() { return rationale; }
+
+    public void recordAdjudication(String decision,double riskScore,String rationale) {
+        this.decision=decision;
+        this.riskScore=riskScore;
+        this.rationale=rationale;
+        setStatus(TransactionStatus.ADJUDICATED);
     }
 
     public void setStatus(TransactionStatus status) {
