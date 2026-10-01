@@ -26,7 +26,7 @@ public class OutboxPublisher {
     @Scheduled(fixedDelayString="\${tradesentry.outbox.poll-ms:500}")
     @Transactional
     public void publishPending(){
-        List<OutboxEvent> events=repository.findTop100ByStatusOrderByCreatedAtAsc(OutboxStatus.PENDING);
+        List<OutboxEvent> events=repository.lockPendingBatch();
         for(OutboxEvent event:events){
             try{
                 JsonNode payload=objectMapper.readTree(event.getPayload());
