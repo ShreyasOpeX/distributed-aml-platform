@@ -12,7 +12,7 @@ public class KafkaErrorHandlingConfig {
     DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, com.tradesentry.core.events.model.TransactionEvent> template) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
                 template,
-                (record, ex) -> new TopicPartition(KafkaTopics.DLQ, record.partition()));
+                (record, ex) -> new TopicPartition(KafkaTopics.DLQ, 0));
         return new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2L));
     }
 }
