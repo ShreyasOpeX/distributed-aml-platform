@@ -21,24 +21,22 @@ disposition. Every stage communicates asynchronously through Apache Kafka.
 
 ## Overview
 
-The platform is built as a set of independently deployable Spring Boot services
-that coordinate through events rather than direct calls. A transaction flows
-through four stages:
+The current reference implementation is an event-driven AML pipeline. The README documents this implementation workflow; the production-scale evolution is documented separately in `docs/SCALING.md`.
 
-1. **Intake** — the transaction is accepted over REST and persisted.
-2. **Screening** — deterministic rules decide whether it clears early or is
-   flagged for investigation.
-3. **Investigation** — a state-graph agent enriches the case, retrieves similar
-   historical cases, scores the risk, and produces a decision.
-4. **Case management** — the decision is applied; escalations open a Suspicious
-   Activity Report (SAR) case.
+Current workflow:
 
-Two transport styles are used deliberately: **Kafka** for asynchronous
-choreography *between* stages, and **gRPC** for synchronous request/response
-*within* the investigation stage.
+1. **REST intake** — authenticate, authorize, rate-limit, attach correlation ID, and persist the transaction.
+2. **Transactional outbox** — commit the transaction and Kafka publication intent atomically in PostgreSQL.
+3. **Kafka ingestion** — publish `transactions.ingested` through the outbox relay.
+4. **Deterministic screening** — clear safe transactions early or publish `transactions.flagged`.
+5. **Investigation** — consume the flagged event idempotently, enrich through gRPC, retrieve similar cases, run the bounded StateGraph, score risk, and apply the decision policy.
+6. **Adjudication** — publish `transactions.adjudicated` with the decision, evidence, rationale, and policy versions.
+7. **Case management** — persist the decision and create an investigation case; escalations create a SAR workflow case.
+8. **Audit** — independently consume lifecycle events and persist durable audit records.
 
+Kafka is used for asynchronous stage-to-stage communication. gRPC is used for synchronous case-data reads inside the investigation stage.
 
-## Architecture
+The current reference implementation intentionally uses deterministic/synthetic screening, case data, and scoring. It does not claim global exactly-once processing or actual regulatory SAR filing.\n\n## Architecture
 
 TradeSentry is a choreographed, event-driven AML transaction-monitoring platform. PostgreSQL owns durable business state, Kafka owns asynchronous stage-to-stage transport, agent-service owns the bounded investigation workflow, and gRPC provides synchronous case-data reads required during an investigation.
 
