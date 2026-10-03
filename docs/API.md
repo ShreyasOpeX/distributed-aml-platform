@@ -20,9 +20,11 @@ Base URL: `http://localhost:8080`
 
 ### Submit a transaction
 
-Accepts a transaction for monitoring. The call returns immediately after the
-transaction is persisted and the ingest event is published; screening and
-investigation happen asynchronously.
+Accepts a transaction for monitoring. The call returns after the transaction
+and its corresponding outbox event are durably committed to PostgreSQL.
+Screening, Kafka publication, investigation, and case management happen
+asynchronously. Kafka publication is performed by the outbox relay after the
+request transaction commits.
 
 ```
 POST /api/transactions
@@ -166,6 +168,7 @@ on field names, order, and types.
 
 | Field                 | Type            | Populated at stage             |
 |-----------------------|-----------------|--------------------------------|
+| `eventId`             | UUID            | every event instance            |
 | `transactionId`       | UUID            | all                            |
 | `accountId`           | string          | all (also the Kafka key)       |
 | `amount`              | number          | all                            |
@@ -173,7 +176,17 @@ on field names, order, and types.
 | `counterpartyCountry` | string          | all                            |
 | `reason`              | string          | flagged / adjudicated          |
 | `decision`            | string          | adjudicated                    |
+| `riskScore`           | number          | adjudicated                    |
+| `investigationDepth`  | integer         | adjudicated                    |
 | `occurredAt`          | timestamp (ISO) | all                            |
+| `ruleVersion`         | string          | screening / adjudicated       |
+| `scoringVersion`      | string          | adjudicated                    |
+| `decisionPolicyVersion` | string        | adjudicated                    |
+| `correlationId`       | string          | pipeline lineage               |
+
+Event IDs and correlation IDs are distinct: `eventId` identifies one event instance, `transactionId` identifies the business transaction, and `correlationId` links the asynchronous request lineage.
+
+The event contract is designed for at-least-once delivery; consumers must be idempotent.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md#kafka-topics-and-consumer-groups) for the
 topics these events flow through.

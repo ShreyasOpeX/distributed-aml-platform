@@ -5,3 +5,5 @@ Use Kafka at-least-once delivery and an inbox key of eventId plus consumerName f
 
 ## Why
 It makes crashes and replay recoverable without claiming global exactly-once semantics.
+
+The inbox key is durable in PostgreSQL and therefore survives restarts and works across horizontally scaled consumer instances. Manual replay is safe only because business side effects remain idempotent.
