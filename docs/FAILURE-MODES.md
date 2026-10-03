@@ -24,6 +24,17 @@ accountId is deliberately used as the Kafka key because per-account ordering is 
 
 If that becomes a capacity problem, changing the key requires revisiting the ordering guarantee rather than simply adding threads.
 
+## Agent-side publication gap
+
+The current agent persists investigation state and then publishes the
+adjudication event. This is a known atomicity boundary: if the database commit
+succeeds and Kafka publication fails, publication needs recovery.
+
+The production-scaled design should add an agent-side transactional outbox so
+investigation state and adjudication intent commit together.
+
+See [SCALING.md](SCALING.md#agent-side-transactional-outbox).
+
 ## Operational response
 
 DLQ growth, outbox backlog, consumer lag and gRPC error rate are operational signals. They should be alerted on and investigated before increasing retry counts blindly.
