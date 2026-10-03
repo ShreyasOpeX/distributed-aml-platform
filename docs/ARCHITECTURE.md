@@ -1,8 +1,8 @@
 # Architecture
 
-This document describes how TradeSentry is structured, how a transaction moves
-through the system, and the key design decisions behind the messaging and
-service boundaries.
+This document describes the current TradeSentry reference architecture, how a transaction moves through the system, and the key design decisions behind the messaging, persistence, and service boundaries.
+
+For the production-scale evolution of the same workflow, see [SCALING.md](SCALING.md).
 
 ## Contents
 
@@ -48,11 +48,15 @@ sequenceDiagram
     participant Agent as agent-service
     participant CD as case-data-service
     participant DB as PostgreSQL
+    participant O as Outbox Relay
 
     C->>Core: POST /api/transactions
-    Core->>DB: save (status = SUBMITTED)
-    Core->>K: publish transactions.ingested
+    Core->>DB: transaction + outbox in one transaction
+    DB-->>Core: commit
     Core-->>C: 202 Accepted (transactionId)
+
+    O->>DB: claim pending outbox rows
+    O->>K: publish transactions.ingested
 
     K->>Core: rule-screen consumes ingested
     alt no rules match
@@ -61,7 +65,8 @@ sequenceDiagram
         Core->>DB: status = FLAGGED
         Core->>K: publish transactions.flagged
     end
-    K->>Core: audit consumes ingested (log)
+    K->>Audit: audit consumes ingested
+    Audit->>DB: durable audit record
 
     K->>Agent: investigation-agent consumes flagged
     Agent->>CD: GetAccountHistory (gRPC, unary)
@@ -74,7 +79,8 @@ sequenceDiagram
     alt decision = ESCALATE
         Core->>Core: file SAR case
     end
-    K->>Core: audit consumes adjudicated (log)
+    K->>Audit: audit consumes adjudicated
+    Audit->>DB: durable audit record
 ```
 
 ## Kafka topics and consumer groups
@@ -170,6 +176,10 @@ touching any node or graph wiring.
 The case data returned today is synthetic and deterministic, derived from the
 `accountId` hash, so investigations are reproducible.
 
+## Persistence and idempotency
+
+Side-effecting consumers use a persistent inbox/processed-event claim keyed by `(event_id, consumer_name)`. PostgreSQL conflict handling makes duplicate delivery a no-op. This state is durable across restarts and horizontally scaled instances.
+
 ## Transaction lifecycle
 
 ```mermaid
@@ -217,6 +227,8 @@ The reference implementation now hardens the pipeline around four durable bounda
 4. Case durability: case management persists the adjudication, investigation case and SAR workflow record.
 
 The resulting reliability model is at-least-once delivery with idempotent side effects.
+
+The current agent has a known database-to-Kafka atomicity gap: investigation state is persisted before adjudication is published. Production hardening should add an agent-side transactional outbox.
 
 ### Outbox relay
 
