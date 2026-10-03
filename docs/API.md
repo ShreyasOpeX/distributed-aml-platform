@@ -20,9 +20,11 @@ Base URL: `http://localhost:8080`
 
 ### Submit a transaction
 
-Accepts a transaction for monitoring. The call returns immediately after the
-transaction is persisted and the ingest event is published; screening and
-investigation happen asynchronously.
+Accepts a transaction for monitoring. The call returns after the transaction
+and its corresponding outbox event are durably committed to PostgreSQL.
+Screening, Kafka publication, investigation, and case management happen
+asynchronously. Kafka publication is performed by the outbox relay after the
+request transaction commits.
 
 ```
 POST /api/transactions
