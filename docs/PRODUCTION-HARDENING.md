@@ -74,6 +74,16 @@ The in-memory limiter is intentionally not described as a global cluster quota. 
 
 Kafka supplies durable buffering, while bounded consumer concurrency, gRPC deadlines and rate limits prevent uncontrolled work from exhausting process memory.
 
+## Agent-side adjudication outbox
+
+The current agent persists completed investigation state and then publishes the
+adjudication event. This is not the same atomicity guarantee as the core
+transactional outbox.
+
+For production, add an agent-side outbox containing the adjudication event and
+relay it after the investigation-state transaction commits. This closes the
+database-to-Kafka atomicity gap at the investigation boundary.
+
 ## Horizontal scaling
 
 Kafka partitions are the primary consumer parallelism unit. A partition is owned by at most one member of a consumer group.
@@ -82,7 +92,7 @@ Adding instances distributes partitions across instances. Increasing concurrency
 
 accountId is the message key, preserving per-account ordering within each topic while allowing different accounts to run concurrently.
 
-## Failure-mode summary
+## Horizontal scaling
 
 | Failure | Result | Recovery |
 | --- | --- | --- |
@@ -96,4 +106,5 @@ accountId is the message key, preserving per-account ordering within each topic 
 | DLQ growth | alert/operator action | diagnose and replay |
 | hot account key | one partition becomes bottleneck | review ordering/key strategy |
 
-See docs/FAILURE-MODES.md and docs/adr for detailed decisions.
+See [SCALING.md](SCALING.md) for the detailed production-scale architecture
+and [FAILURE-MODES.md](FAILURE-MODES.md) for failure analysis.
