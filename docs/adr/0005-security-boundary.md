@@ -5,3 +5,5 @@ The reference implementation uses Spring Security role-based authorization. Prod
 
 ## Roles
 AML_OPERATOR submits transactions. AML_ANALYST reads investigation state.
+
+The reference deployment uses HTTP Basic with environment-supplied credentials. Production should move to OIDC/OAuth2, service-to-service authentication, TLS, centralized secrets, and least-privilege authorization.
