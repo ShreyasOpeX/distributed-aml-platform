@@ -168,6 +168,7 @@ on field names, order, and types.
 
 | Field                 | Type            | Populated at stage             |
 |-----------------------|-----------------|--------------------------------|
+| `eventId`             | UUID            | every event instance            |
 | `transactionId`       | UUID            | all                            |
 | `accountId`           | string          | all (also the Kafka key)       |
 | `amount`              | number          | all                            |
@@ -175,6 +176,8 @@ on field names, order, and types.
 | `counterpartyCountry` | string          | all                            |
 | `reason`              | string          | flagged / adjudicated          |
 | `decision`            | string          | adjudicated                    |
+| `riskScore`           | number          | adjudicated                    |
+| `investigationDepth`  | integer         | adjudicated                    |
 | `occurredAt`          | timestamp (ISO) | all                            |
 | `ruleVersion`         | string          | screening / adjudicated       |
 | `scoringVersion`      | string          | adjudicated                    |
