@@ -1,8 +1,7 @@
 # Configuration Reference
 
 Every service is configured through `application.yml` with environment-variable
-overrides. All variables have localhost-friendly defaults, so the services run
-without any configuration when Kafka and PostgreSQL are reachable on localhost.
+overrides. Most infrastructure variables have localhost-friendly defaults. API credentials are intentionally required and have no defaults.
 Docker Compose sets the overrides needed to run inside the compose network.
 
 ## Contents
@@ -24,6 +23,10 @@ HTTP port: `8080`
 | `DB_NAME`        | `tradesentry` | Database name                       |
 | `DB_USER`        | `tradesentry` | Database user                       |
 | `DB_PASSWORD`    | `tradesentry` | Database password                   |
+| `TRADESENTRY_API_USER` | required | HTTP Basic username; no default |
+| `TRADESENTRY_API_PASSWORD` | required | HTTP Basic password; no default |
+| `TRADESENTRY_TRACE_SAMPLE` | `0.1` | OpenTelemetry trace sampling probability |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318/v1/traces` | OTLP trace endpoint |
 | `CORE_KAFKA_MAX_POLL_RECORDS` | `50` | Maximum records returned per core consumer poll |
 
 Notes:
@@ -76,9 +79,11 @@ Provisioned by `docker-compose.yml`.
 
 ### Security and observability
 
-The REST security boundary uses environment-supplied API credentials in the
-reference deployment; do not commit production credentials. The application
-also supports `TRADESENTRY_TRACE_SAMPLE` (default `0.1`) and
+The REST security boundary uses environment-supplied API credentials. Both
+`TRADESENTRY_API_USER` and `TRADESENTRY_API_PASSWORD` are required and have no
+default values. Do not commit production credentials.
+
+The application supports `TRADESENTRY_TRACE_SAMPLE` (default `0.1`) and
 `OTEL_EXPORTER_OTLP_ENDPOINT` for tracing.
 
 For production, replace reference Basic authentication with an enterprise
