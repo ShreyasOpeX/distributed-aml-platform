@@ -176,6 +176,14 @@ on field names, order, and types.
 | `reason`              | string          | flagged / adjudicated          |
 | `decision`            | string          | adjudicated                    |
 | `occurredAt`          | timestamp (ISO) | all                            |
+| `ruleVersion`         | string          | screening / adjudicated       |
+| `scoringVersion`      | string          | adjudicated                    |
+| `decisionPolicyVersion` | string        | adjudicated                    |
+| `correlationId`       | string          | pipeline lineage               |
+
+Event IDs and correlation IDs are distinct: `eventId` identifies one event instance, `transactionId` identifies the business transaction, and `correlationId` links the asynchronous request lineage.
+
+The event contract is designed for at-least-once delivery; consumers must be idempotent.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md#kafka-topics-and-consumer-groups) for the
 topics these events flow through.
