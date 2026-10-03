@@ -166,6 +166,14 @@ Watch the logs to follow screening, investigation, and case-management
 decisions. Poll `GET /api/transactions/{id}` to observe the status transition
 from `SUBMITTED` to its final state.
 
+## Documentation map
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — current reference workflow and boundaries.
+- [SCALING.md](SCALING.md) — production-scale evolution and capacity planning.
+- [FAILURE-MODES.md](FAILURE-MODES.md) — failure behavior and recovery.
+- [PRODUCTION-HARDENING.md](PRODUCTION-HARDENING.md) — hardening decisions.
+- [adr/](adr/) — architectural decisions.
+
 ## Troubleshooting
 
 - **Kafka fails to start / controller listener errors.** The compose Kafka
